@@ -19,10 +19,10 @@
 ;***********************************************************
 ;*  Internal Register Definitions and Constants
 ;***********************************************************
-.def    mpr = r16                ; Multi-Purpose Register
-.def	waitcnt = r17			 ; Wait Loop Counter
-.def    ilcnt = r18              ; Inner Loop Counter
-.def    olcnt = r19              ; Outer Loop Counter
+.def    mpr = r16                		; Multi-Purpose Register
+.def	waitcnt = r17			 	; Wait Loop Counter
+.def    ilcnt = r18              		; Inner Loop Counter
+.def    olcnt = r19              		; Outer Loop Counter
 .def	GCount = r23
 .def	RXReg = r24
 .def	TXReg = r25
@@ -30,7 +30,7 @@
 ; Use this signal code between two boards for their game ready
 .equ    SendReady = 0b11111111
 
-.equ	WTime = 50									; 150 ms MAX wait
+.equ	WTime = 50				; 150 ms MAX wait
 
 .equ	Gestures = 2
 .equ	StringCount = 16
@@ -39,27 +39,27 @@
 ;***********************************************************
 ;*  Start of Code Segment
 ;***********************************************************
-.cseg												; Beginning of code segment
+.cseg						; Beginning of code segment
 
 ;***********************************************************
 ;*  Interrupt Vectors
 ;***********************************************************
-.org    $0000										; Beginning of IVs
-	    rjmp    INIT            					; Reset interrupt
+.org    $0000					; Beginning of IVs
+	    rjmp    INIT            		; Reset interrupt
 
 .org	$0002	
-		rcall	GESTURE								; Iterrate through gestures (wrapped)
-		reti										; Rock -> Paper -> Scissor
+		rcall	GESTURE			; Iterrate through gestures (wrapped)
+		reti				; Rock -> Paper -> Scissor
 
 .org    $0004
-        rcall   GAME_BEGIN							; Wait for opponent, Tx/Rx comms
-        reti
+        	rcall   GAME_BEGIN		; Wait for opponent, Tx/Rx comms
+        	reti
 
 .org	$0032
-		rcall	USART_Receive						; USART1 Rx Complete interrupt
+		rcall	USART_Receive		; USART1 Rx Complete interrupt
 		reti
 
-.org    $0056										; End of Interrupt Vectors
+.org    $0056					; End of Interrupt Vectors
 
 ;***********************************************************
 ;*  Program Initialization
@@ -68,67 +68,67 @@ INIT:
 		;Stack Pointer (VERY IMPORTANT!!!!)
 		; Initialize Stack Pointer
 		ldi		mpr, low(RAMEND)
-		out		SPL, mpr							; Load SPL with low byte of RAMEND
+		out		SPL, mpr					; Load SPL with low byte of RAMEND
 		ldi		mpr, high(RAMEND)
-		out		SPH, mpr							; Load SPH with high byte of RAMEND
+		out		SPH, mpr					; Load SPH with high byte of RAMEND
 
 		;I/O Ports
 		; Initialize Port B for output
-		ldi		mpr, $FF							; Set Port B Data Direction Register
-		out		DDRB, mpr							; for output
-		ldi		mpr, $00							; Initialize Port B Data Register
-		out		PORTB, mpr							; so all Port B outputs are low
+		ldi		mpr, $FF					; Set Port B Data Direction Register
+		out		DDRB, mpr					; for output
+		ldi		mpr, $00					; Initialize Port B Data Register
+		out		PORTB, mpr					; so all Port B outputs are low
 
 		; Initialize Port D for external interrupts
 		; Transmitter: 
 		; RXD1[PD3]: Receive input [0]
 		; TXD1[PD2]: Send output [1]
-		ldi		mpr, 0b00001000						; Set Port D Data Direction Register
-		out		DDRD, mpr							; for input
+		ldi		mpr, 0b00001000					; Set Port D Data Direction Register
+		out		DDRD, mpr					; for input
 		ldi		mpr, $FF
 		out		PORTD, mpr
 
 
 		; USART1 setup
-		ldi		mpr, high(416)						; UBRR value for 2400 bps baudrate
+		ldi		mpr, high(416)					; UBRR value for 2400 bps baudrate
 		sts		UBRR1H, mpr
-		ldi		mpr, low(416)						; 8 MHz, double speed mode
+		ldi		mpr, low(416)					; 8 MHz, double speed mode
 		sts		UBRR1L, mpr
 
 		; Set frame format: 8 data bits, 2 stop bits
 		ldi		mpr, (1 << USBS1) | (1 << UCSZ11) | (1 << UCSZ10) 
 		sts		UCSR1C, mpr
 
-		ldi		mpr, (1 << UDRE1) | (1 << U2X1)					; Double USART Transmission speed
+		ldi		mpr, (1 << UDRE1) | (1 << U2X1)			; Double USART Transmission speed
 		sts		UCSR1A, mpr
 
 		;	CODE DIFFERENCE HERE - SET ONE TO RECIEVE ONE TO TRANSMIT
-		ldi		mpr, (1<<TXEN1) | (1<<RXEN1) | (1<<RXCIE1)			; Enable transmit 
+		ldi		mpr, (1<<TXEN1) | (1<<RXEN1) | (1<<RXCIE1)	; Enable transmit 
 		sts		UCSR1B, mpr
 
 		;TIMER/COUNTER1
 		;Set Normal mode
-		ldi		mpr, 0b00000000						; (WGMn3:0 = 0)
+		ldi		mpr, 0b00000000					; (WGMn3:0 = 0)
 		sts		TCCR1A, mpr
 
-		ldi		mpr, 0b00000011						; 64 prescaler
+		ldi		mpr, 0b00000011					; 64 prescaler
 		sts		TCCR1B, mpr	
 
-	    ; Configure External Interrupts
-        ; Falling edge
-		ldi		mpr, 0b00001010						; set falling edge interrupts: INT1, INT0
-		sts		EICRA, mpr							; stores EICRA
+	    	; Configure External Interrupts
+        	; Falling edge
+		ldi		mpr, 0b00001010					; set falling edge interrupts: INT1, INT0
+		sts		EICRA, mpr					; stores EICRA
 
 		; Configure the External Interrupt Mask
-		ldi		mpr, 0b0000011						; Allows interrupt flags
-		out		EIMSK, mpr							; stores EIMSK
+		ldi		mpr, 0b0000011					; Allows interrupt flags
+		out		EIMSK, mpr					; stores EIMSK
 
-		rcall	LCDInit								; routine call to initialize the LCD
-		rcall	LCDBacklightOn
-		rcall	LCDClr								; clear the LCD
+		rcall		LCDInit						; routine call to initialize the LCD
+		rcall		LCDBacklightOn
+		rcall		LCDClr						; clear the LCD
 
 		ldi		GCount, Gestures
-		rcall	LOAD_WELCOME
+		rcall		LOAD_WELCOME
 
 		sei
 
@@ -153,9 +153,9 @@ MAIN:
 ;-----------------------------------------------------------
 
 USART_Transmit:
-		lds     mpr, UCSR1A
-		sbrs	mpr, UDRE1
-		rjmp	USART_Transmit
+		lds     	mpr, UCSR1A
+		sbrs		mpr, UDRE1
+		rjmp		USART_Transmit
 
 		sts		UDR1, TXReg
 
@@ -178,16 +178,16 @@ USART_Receive:
 ; ready signal to receiver.
 ;-----------------------------------------------------------
 GAME_BEGIN:
-		ldi		TXReg, SendReady			; Test message
-		rcall	LOAD_WAIT					; Load wait for ready signal 
-		rcall	USART_Transmit				; Transmit ready signal
+		ldi		TXReg, SendReady				; Test message
+		rcall	LOAD_WAIT						; Load wait for ready signal 
+		rcall	USART_Transmit						; Transmit ready signal
 
 RX_COMPLETE:
-		cpi		RXReg, SendReady			; Compare Ready signal
+		cpi		RXReg, SendReady				; Compare Ready signal
 		brne	RX_COMPLETE
 
 		
-		rcall	COUNTDOWN					; To show receive completed
+		rcall	COUNTDOWN						; To show receive completed
 		
 		
 		ret
@@ -204,8 +204,8 @@ DELAY:
 		ldi		waitcnt, 3					; Set loop counter
 
 CHECKFLAG:
-		sbis	TIFR1, TOV1					; Check if TOV1 flag has been set
-		rjmp	CHECKFLAG					; Skip CHECKFLAG if Bit 0 is set to 1
+		sbis	TIFR1, TOV1						; Check if TOV1 flag has been set
+		rjmp	CHECKFLAG						; Skip CHECKFLAG if Bit 0 is set to 1
 
 		sbi		TIFR1, TOV1					; No Overflow Interrupt, Set TOV1 to 1 to clear
 									
@@ -213,7 +213,7 @@ CHECKFLAG:
 		sts		TCNT1L, mpr					; TCNT1x = 
 		ldi		mpr, 0x0B					; prescaler/F_Clock = 64/8 Mhz = 0.000008
 		sts		TCNT1H, mpr					; (500 ms) / 0.000008 = 62500
-											; 2^16 - 62500 = 3036 -> $0BDC
+										; 2^16 - 62500 = 3036 -> $0BDC
 
 		dec		waitcnt						; Decrement waitcnt by 1 for each loop
 		cpi		waitcnt, 0			
